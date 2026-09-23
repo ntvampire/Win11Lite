@@ -11,7 +11,12 @@
     - Системные кодеки и библиотеки (VCLibs, .NET Native, Xaml, WebMedia, VP9, HEIF).
 #>
 
-Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath 'Common.psm1') -Force
+if (-not (Get-Command 'Write-OptLog' -ErrorAction SilentlyContinue)) {
+    $commonPath = Join-Path -Path $PSScriptRoot -ChildPath 'Common.psm1'
+    if (Test-Path $commonPath) {
+        Import-Module -Name $commonPath -Global
+    }
+}
 
 # Белый список пакетов, которые КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО удалять
 $script:AppxWhiteList = @(

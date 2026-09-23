@@ -9,7 +9,12 @@
     - Строго сохраняет службы Защитника Windows (Defender), Центра обновления (Windows Update) и Магазина (Store).
 #>
 
-Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath 'Common.psm1') -Force
+if (-not (Get-Command 'Write-OptLog' -ErrorAction SilentlyContinue)) {
+    $commonPath = Join-Path -Path $PSScriptRoot -ChildPath 'Common.psm1'
+    if (Test-Path $commonPath) {
+        Import-Module -Name $commonPath -Global
+    }
+}
 
 function Optimize-MemoryCompression {
     <#

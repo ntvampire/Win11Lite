@@ -13,7 +13,7 @@ function Write-OptLog {
         [Parameter(Mandatory = $true, Position = 0)]
         [string]$Message,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, Position = 1)]
         [ValidateSet('INFO', 'SUCCESS', 'WARN', 'ERROR', 'HEADER')]
         [string]$Level = 'INFO'
     )
@@ -55,23 +55,43 @@ function Get-WindowsSystemInfo {
     .SYNOPSIS
         Собирает сведения о версии Windows, редакции (LTSC/Consumer) и объеме RAM.
     #>
-    $os = Get-CimInstance -ClassName Win32_OperatingSystem
-    $cs = Get-CimInstance -ClassName Win32_ComputerSystem
+    try {
+        $reg = Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -ErrorAction SilentlyContinue
+        $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction SilentlyContinue
+        $cs = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction SilentlyContinue
 
-    $build = [int]$os.BuildNumber
-    $isWin11 = $build -ge 22000
-    $isLTSC = ($os.Caption -match 'LTSC|LTSB|EnterpriseS')
+        $caption = if ($os -and $os.Caption) { $os.Caption } elseif ($reg -and $reg.ProductName) { $reg.ProductName } else { "Windows 10/11" }
+        $build = if ($os -and $os.BuildNumber) { [int]$os.BuildNumber } elseif ($reg -and $reg.CurrentBuildNumber) { [int]$reg.CurrentBuildNumber } else { 19045 }
+        $editionId = if ($reg -and $reg.EditionID) { $reg.EditionID } else { '' }
 
-    $ramTotalGB = [math]::Round($cs.TotalPhysicalMemory / 1GB, 1)
+        $isWin11 = $build -ge 22000
+        $isLTSC = ($caption -match 'LTSC|LTSB|EnterpriseS') -or ($editionId -match 'EnterpriseS')
 
-    return [PSCustomObject]@{
-        OSCaption     = $os.Caption
-        BuildNumber   = $build
-        IsWindows11   = $isWin11
-        IsLTSC        = $isLTSC
-        RAMTotalGB    = $ramTotalGB
-        Architecture  = $os.OSArchitecture
-        ComputerName  = $env:COMPUTERNAME
+        $totalMem = if ($cs -and $cs.TotalPhysicalMemory) { $cs.TotalPhysicalMemory } else { 0 }
+        $ramTotalGB = if ($totalMem -gt 0) { [math]::Round($totalMem / 1GB, 1) } else { 4.0 }
+
+        $arch = if ($os -and $os.OSArchitecture) { $os.OSArchitecture } elseif ($env:PROCESSOR_ARCHITECTURE) { $env:PROCESSOR_ARCHITECTURE } else { "64-bit" }
+
+        return [PSCustomObject]@{
+            OSCaption     = $caption
+            BuildNumber   = $build
+            IsWindows11   = $isWin11
+            IsLTSC        = $isLTSC
+            RAMTotalGB    = $ramTotalGB
+            Architecture  = $arch
+            ComputerName  = $env:COMPUTERNAME
+        }
+    }
+    catch {
+        return [PSCustomObject]@{
+            OSCaption     = "Windows"
+            BuildNumber   = 0
+            IsWindows11   = $false
+            IsLTSC        = $false
+            RAMTotalGB    = 4.0
+            Architecture  = "64-bit"
+            ComputerName  = $env:COMPUTERNAME
+        }
     }
 }
 
@@ -117,16 +137,16 @@ function Set-RegistryValueSafe {
         Безопасно создает ключ реестра при его отсутствии и устанавливает требуемое значение.
     #>
     param(
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $true, Position = 0)]
         [string]$Path,
 
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $true, Position = 1)]
         [string]$Name,
 
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $true, Position = 2)]
         $Value,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, Position = 3)]
         [ValidateSet('String', 'DWord', 'QWord', 'Binary', 'MultiString', 'ExpandString')]
         [string]$PropertyType = 'DWord'
     )

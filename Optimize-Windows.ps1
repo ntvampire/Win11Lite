@@ -45,10 +45,13 @@ param(
     [switch]$Restart
 )
 
-# Разрешаем запуск неподписанных скриптов в рамках текущей сессии
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force -ErrorAction SilentlyContinue
+# Разрешаем запуск скриптов в рамках текущей сессии
+Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force -ErrorAction SilentlyContinue
 
 $scriptDir = $PSScriptRoot
+if (-not [string]::IsNullOrEmpty($scriptDir) -and (Test-Path $scriptDir)) {
+    Get-ChildItem -Path $scriptDir -Recurse -Include *.ps1, *.psm1 | Unblock-File -ErrorAction SilentlyContinue
+}
 
 # Поддержка удаленного запуска через 'irm ... | iex' без предварительного скачивания
 if ([string]::IsNullOrEmpty($scriptDir) -or (-not (Test-Path (Join-Path -Path $scriptDir -ChildPath 'modules\Common.psm1')))) {
@@ -97,12 +100,12 @@ if ([string]::IsNullOrEmpty($scriptDir) -or (-not (Test-Path (Join-Path -Path $s
 
 $modulesDir = Join-Path -Path $scriptDir -ChildPath 'modules'
 
-# Импорт модулей
-Import-Module (Join-Path -Path $modulesDir -ChildPath 'Common.psm1') -Force
-Import-Module (Join-Path -Path $modulesDir -ChildPath 'StorageAndHdd.psm1') -Force
-Import-Module (Join-Path -Path $modulesDir -ChildPath 'MemoryAndServices.psm1') -Force
-Import-Module (Join-Path -Path $modulesDir -ChildPath 'VisualAndGpu.psm1') -Force
-Import-Module (Join-Path -Path $modulesDir -ChildPath 'BloatwareCleanup.psm1') -Force
+# Импорт модулей в глобальную область видимости
+Import-Module (Join-Path -Path $modulesDir -ChildPath 'Common.psm1') -Global -Force
+Import-Module (Join-Path -Path $modulesDir -ChildPath 'StorageAndHdd.psm1') -Global -Force
+Import-Module (Join-Path -Path $modulesDir -ChildPath 'MemoryAndServices.psm1') -Global -Force
+Import-Module (Join-Path -Path $modulesDir -ChildPath 'VisualAndGpu.psm1') -Global -Force
+Import-Module (Join-Path -Path $modulesDir -ChildPath 'BloatwareCleanup.psm1') -Global -Force
 
 # Проверка прав администратора
 if (-not (Test-IsAdmin)) {

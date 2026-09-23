@@ -9,5 +9,5 @@ if %errorLevel% neq 0 (
 
 :: Запуск PowerShell скрипта оптимизации
 cd /d "%~dp0"
-powershell -NoProfile -ExecutionPolicy Bypass -File ".\Optimize-Windows.ps1"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-ChildItem -Path '%~dp0' -Recurse | Unblock-File -ErrorAction SilentlyContinue; & '.\Optimize-Windows.ps1'"
 pause
