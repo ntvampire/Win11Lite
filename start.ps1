@@ -5,6 +5,7 @@ $repoBase = "https://raw.githubusercontent.com/ntvampire/Win11Lite/main"
 $tempDir = Join-Path -Path $env:TEMP -ChildPath "Win11Lite"
 
 if (Test-Path $tempDir) {
+    Get-ChildItem -Path $tempDir -Recurse | Remove-Item -Force -Recurse -ErrorAction SilentlyContinue
     Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
 }
 New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
@@ -30,7 +31,7 @@ foreach ($file in $files) {
     if (-not (Test-Path $parent)) {
         New-Item -ItemType Directory -Path $parent -Force | Out-Null
     }
-    $url = "$repoBase/$file"
+    $url = "$repoBase/$file?t=" + [DateTime]::UtcNow.Ticks
     try {
         $wc = New-Object System.Net.WebClient
         $wc.Headers.Add("User-Agent", "Win11Lite-Loader")
