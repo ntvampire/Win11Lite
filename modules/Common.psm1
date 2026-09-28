@@ -159,8 +159,24 @@ function Set-RegistryValueSafe {
         return $true
     }
     catch {
-        Write-OptLog "Ошибка записи в реестр [$Path] $Name = $Value : $($_.Exception.Message)" 'ERROR'
-        return $false
+        # Fallback via reg.exe
+        try {
+            $regPath = $Path -replace '^HKCU:\\', 'HKCU\' -replace '^HKLM:\\', 'HKLM\'
+            $regType = switch ($PropertyType) {
+                'DWord'       { 'REG_DWORD' }
+                'QWord'       { 'REG_QWORD' }
+                'Binary'      { 'REG_BINARY' }
+                'MultiString' { 'REG_MULTI_SZ' }
+                'ExpandString'{ 'REG_EXPAND_SZ' }
+                default       { 'REG_SZ' }
+            }
+            & reg.exe add $regPath /v $Name /t $regType /d $Value /f 2>&1 | Out-Null
+            return $true
+        }
+        catch {
+            Write-OptLog "Предупреждение при записи в реестр [$Path] ${Name}: $($_.Exception.Message)" 'WARN'
+            return $false
+        }
     }
 }
 

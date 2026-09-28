@@ -113,20 +113,27 @@ function Disable-WidgetsAndTaskbarBloat {
     #>
     Write-OptLog "Отключение виджетов новостей, погоды и чата с панели задач..." 'INFO'
 
-    # Windows 10: Новости и интересы (Feeds)
-    $feeds = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Feeds"
-    Set-RegistryValueSafe -Path $feeds -Name "ShellFeedsTaskbarViewMode" -Value 2 -PropertyType 'DWord' | Out-Null # 2 = Hidden
+    $sys = Get-WindowsSystemInfo
 
-    $feedsPolicy = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Feeds"
-    Set-RegistryValueSafe -Path $feedsPolicy -Name "EnableFeeds" -Value 0 -PropertyType 'DWord' | Out-Null
+    if ($sys.IsWindows11) {
+        # Windows 11: Виджеты (Dsh) и Чат
+        $dshPolicy = "HKLM:\SOFTWARE\Policies\Microsoft\Dsh"
+        Set-RegistryValueSafe -Path $dshPolicy -Name "AllowNewsAndInterests" -Value 0 -PropertyType 'DWord' | Out-Null
 
-    # Windows 11: Виджеты (Dsh)
-    $dshPolicy = "HKLM:\SOFTWARE\Policies\Microsoft\Dsh"
-    Set-RegistryValueSafe -Path $dshPolicy -Name "AllowNewsAndInterests" -Value 0 -PropertyType 'DWord' | Out-Null
+        $explorerAdv = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+        Set-RegistryValueSafe -Path $explorerAdv -Name "TaskbarDa" -Value 0 -PropertyType 'DWord' | Out-Null
+        Set-RegistryValueSafe -Path $explorerAdv -Name "TaskbarMn" -Value 0 -PropertyType 'DWord' | Out-Null
+    }
+    else {
+        # Windows 10: Новости и интересы (Feeds)
+        # Отключение через машинную политику гарантированно скрывает виджет для всех пользователей
+        $feedsPolicy = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Feeds"
+        Set-RegistryValueSafe -Path $feedsPolicy -Name "EnableFeeds" -Value 0 -PropertyType 'DWord' | Out-Null
 
-    $explorerAdv = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
-    Set-RegistryValueSafe -Path $explorerAdv -Name "TaskbarDa" -Value 0 -PropertyType 'DWord' | Out-Null # Отключение иконки Виджетов
-    Set-RegistryValueSafe -Path $explorerAdv -Name "TaskbarMn" -Value 0 -PropertyType 'DWord' | Out-Null # Отключение иконки Чата Teams
+        # Настройка в профиле текущего пользователя
+        $feeds = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Feeds"
+        Set-RegistryValueSafe -Path $feeds -Name "ShellFeedsTaskbarViewMode" -Value 2 -PropertyType 'DWord' | Out-Null
+    }
 
     Write-OptLog "Виджеты панели задач отключены (дополнительно освобождено ~200 МБ ОЗУ)." 'SUCCESS'
 }
