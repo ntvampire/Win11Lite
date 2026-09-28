@@ -1,11 +1,6 @@
-﻿#Requires -Version 5.1
-<#
-.SYNOPSIS
-    Универсальный онлайн-загрузчик Win11Lite для выполнения через:
-    irm https://raw.githubusercontent.com/ntvampire/Win11Lite/main/start.ps1 | iex
-#>
-
+Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force -ErrorAction SilentlyContinue
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
 $repoBase = "https://raw.githubusercontent.com/ntvampire/Win11Lite/main"
 $tempDir = Join-Path -Path $env:TEMP -ChildPath "Win11Lite"
 
@@ -26,7 +21,7 @@ $files = @(
 )
 
 Write-Host "=========================================================" -ForegroundColor Cyan
-Write-Host " Загрузка Win11Lite (Оптимизация Windows 10/11 x64)...   " -ForegroundColor Yellow
+Write-Host " Win11Lite: Downloading optimization suite...           " -ForegroundColor Yellow
 Write-Host "=========================================================" -ForegroundColor Cyan
 
 foreach ($file in $files) {
@@ -40,13 +35,15 @@ foreach ($file in $files) {
         Invoke-RestMethod -Uri $url -OutFile $targetFile -ErrorAction Stop
     }
     catch {
-        Write-Host "[-] Ошибка загрузки $url : $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "[-] Download error: $url : $($_.Exception.Message)" -ForegroundColor Red
     }
 }
 
+Get-ChildItem -Path $tempDir -Recurse | Unblock-File -ErrorAction SilentlyContinue
+
 $mainScript = Join-Path -Path $tempDir -ChildPath "Optimize-Windows.ps1"
 if (Test-Path $mainScript) {
-    & $mainScript @args
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$mainScript" @args
 } else {
-    Write-Host "[-] Ошибка: главный скрипт не найден." -ForegroundColor Red
+    Write-Host "[-] Error: main script not found." -ForegroundColor Red
 }

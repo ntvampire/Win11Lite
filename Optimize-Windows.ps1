@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 <#
 .SYNOPSIS
     Главный скрипт комплексной оптимизации Windows 10/11 x64 после чистой установки.
@@ -91,7 +91,8 @@ if ([string]::IsNullOrEmpty($scriptDir) -or (-not (Test-Path (Join-Path -Path $s
 
     $localEntry = Join-Path -Path $tempDir -ChildPath "Optimize-Windows.ps1"
     if (Test-Path $localEntry) {
-        & $localEntry @PSBoundParameters
+        Get-ChildItem -Path $tempDir -Recurse | Unblock-File -ErrorAction SilentlyContinue
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$localEntry" @PSBoundParameters
     } else {
         Write-Host "[-] Не удалось инициализировать запуск." -ForegroundColor Red
     }
