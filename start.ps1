@@ -32,7 +32,16 @@ foreach ($file in $files) {
     }
     $url = "$repoBase/$file"
     try {
-        Invoke-RestMethod -Uri $url -OutFile $targetFile -ErrorAction Stop
+        $wc = New-Object System.Net.WebClient
+        $wc.Headers.Add("User-Agent", "Win11Lite-Loader")
+        $bytes = $wc.DownloadData($url)
+        if ($file -match '\.(ps1|psm1)$') {
+            if ($bytes.Length -lt 3 -or $bytes[0] -ne 0xEF -or $bytes[1] -ne 0xBB -or $bytes[2] -ne 0xBF) {
+                $bom = [byte[]]@(0xEF, 0xBB, 0xBF)
+                $bytes = $bom + $bytes
+            }
+        }
+        [System.IO.File]::WriteAllBytes($targetFile, $bytes)
     }
     catch {
         Write-Host "[-] Download error: $url : $($_.Exception.Message)" -ForegroundColor Red

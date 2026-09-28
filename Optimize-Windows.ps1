@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
     Главный скрипт комплексной оптимизации Windows 10/11 x64 после чистой установки.
@@ -82,7 +82,16 @@ if ([string]::IsNullOrEmpty($scriptDir) -or (-not (Test-Path (Join-Path -Path $s
         }
         $url = "$repoBase/$f"
         try {
-            Invoke-RestMethod -Uri $url -OutFile $dest -ErrorAction Stop
+            $wc = New-Object System.Net.WebClient
+            $wc.Headers.Add("User-Agent", "Win11Lite-Loader")
+            $bytes = $wc.DownloadData($url)
+            if ($f -match '\.(ps1|psm1)$') {
+                if ($bytes.Length -lt 3 -or $bytes[0] -ne 0xEF -or $bytes[1] -ne 0xBB -or $bytes[2] -ne 0xBF) {
+                    $bom = [byte[]]@(0xEF, 0xBB, 0xBF)
+                    $bytes = $bom + $bytes
+                }
+            }
+            [System.IO.File]::WriteAllBytes($dest, $bytes)
         }
         catch {
             Write-Host "[-] Ошибка загрузки $url : $($_.Exception.Message)" -ForegroundColor Red
