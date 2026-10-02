@@ -89,7 +89,12 @@ $script:AppxBlackList = @(
     '*3DViewer*',                  # Средство 3D-просмотра
     '*Microsoft3DViewer*',
     '*Print3D*',
-    '*Yandex*'                     # Яндекс Музыка и региональные промо-пакеты
+    '*Yandex*',                    # Яндекс Музыка и региональные промо-пакеты
+
+    # Microsoft Outlook (Новый, старый, UWP, Beta/Preview)
+    '*OutlookForWindows*',
+    '*Microsoft.Outlook*',
+    '*Outlook*'
 )
 
 function Test-IsPackageWhitelisted {
@@ -291,15 +296,157 @@ function Remove-OneDrive {
     Write-OptLog "Удаление и очистка Microsoft OneDrive успешно завершены." 'SUCCESS'
 }
 
+function Remove-Outlook {
+    <#
+    .SYNOPSIS
+        Полное удаление Microsoft Outlook (нового Outlook for Windows, старого UWP и Beta/Preview версий).
+    .DESCRIPTION
+        - Завершает процессы olk.exe и связанные с Outlook
+        - Удаляет установленные и Provisioned UWP-пакеты (*OutlookForWindows*, *Outlook*)
+        - Деинсталлирует автономный установщик New Outlook через реестр
+        - Очищает папки данных и кэша ($env:LOCALAPPDATA\Microsoft\Olk, AppData\Packages)
+        - Удаляет ярлыки из меню Пуск и с Рабочего стола
+        - Отключает автоматическую установку и принудительную миграцию в реестре
+    #>
+    Write-OptLog "Удаление Microsoft Outlook (новый, старый, preview/beta)..." 'INFO'
+
+    # 1. Завершение запущенных процессов Outlook / Olk
+    try {
+        Get-Process -Name "olk", "Outlook", "HxOutlook", "HxCalendar" -ErrorAction SilentlyContinue |
+            Stop-Process -Force -ErrorAction SilentlyContinue
+    }
+    catch { }
+
+    # 2. Удаление Appx пакетов для всех пользователей
+    $outlookPatterns = @('*OutlookForWindows*', '*Microsoft.Outlook*', '*Outlook*')
+    foreach ($pattern in $outlookPatterns) {
+        try {
+            $pkgs = Get-AppxPackage -Name $pattern -AllUsers -ErrorAction SilentlyContinue
+            foreach ($p in $pkgs) {
+                if (-not (Test-IsPackageWhitelisted -PackageName $p.Name)) {
+                    Write-OptLog "Удаление установленного пакета Outlook: $($p.Name)..." 'INFO'
+                    try {
+                        Remove-AppxPackage -Package $p.PackageFullName -AllUsers -ErrorAction Stop
+                        Write-OptLog "Пакет успешно удален: $($p.Name)" 'SUCCESS'
+                    }
+                    catch {
+                        Remove-AppxPackage -Package $p.PackageFullName -ErrorAction SilentlyContinue
+                    }
+                }
+            }
+        }
+        catch { }
+
+        try {
+            $prov = Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue |
+                Where-Object { $_.DisplayName -like $pattern -or $_.PackageName -like $pattern }
+            foreach ($p in $prov) {
+                Write-OptLog "Удаление Provisioned-образа Outlook: $($p.DisplayName)..." 'INFO'
+                Remove-AppxProvisionedPackage -Online -PackageName $p.PackageName -ErrorAction SilentlyContinue | Out-Null
+            }
+        }
+        catch { }
+    }
+
+    # 3. Деинсталляция через реестр (если был установлен автономный olk.exe / installer)
+    $uninstallKeys = @(
+        "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall",
+        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+        "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
+    )
+    foreach ($uk in $uninstallKeys) {
+        if (Test-Path $uk) {
+            Get-ChildItem -Path $uk -ErrorAction SilentlyContinue | ForEach-Object {
+                $dn = (Get-ItemProperty -Path $_.PSPath -Name "DisplayName" -ErrorAction SilentlyContinue).DisplayName
+                $us = (Get-ItemProperty -Path $_.PSPath -Name "UninstallString" -ErrorAction SilentlyContinue).UninstallString
+                if ($dn -and ($dn -like "*Outlook (new)*" -or $dn -like "*Outlook for Windows*" -or $dn -like "*Microsoft Outlook*") -and $us) {
+                    Write-OptLog "Деинсталляция $dn..." 'INFO'
+                    try {
+                        $usClean = $us -replace '"', ''
+                        if ($usClean -match '(?i)\.exe') {
+                            Start-Process -FilePath cmd.exe -ArgumentList "/c `"$us /quiet /norestart`"" -Wait -WindowStyle Hidden -ErrorAction SilentlyContinue
+                        }
+                    }
+                    catch { }
+                }
+            }
+        }
+    }
+
+    # 4. Очистка каталогов профиля и кэша
+    $olkDirs = @(
+        "$env:LOCALAPPDATA\Microsoft\Olk",
+        "$env:ProgramData\Microsoft\Olk"
+    )
+    $packagesDir = "$env:LOCALAPPDATA\Packages"
+    if (Test-Path $packagesDir) {
+        Get-ChildItem -Path $packagesDir -Filter "*Outlook*" -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+            $olkDirs += $_.FullName
+        }
+    }
+
+    foreach ($dir in $olkDirs) {
+        if (Test-Path $dir) {
+            Write-OptLog "Очистка каталога Outlook: $dir..." 'INFO'
+            try {
+                & cmd.exe /c "attrib -r -s -h `"$dir\*`" /s /d" 2>$null
+                Remove-Item -Path $dir -Recurse -Force -ErrorAction SilentlyContinue
+            }
+            catch { }
+        }
+    }
+
+    # 5. Очистка ярлыков из меню Пуск и с Рабочего стола
+    $shortcutLocations = @(
+        "$env:APPDATA\Microsoft\Windows\Start Menu\Programs",
+        "$env:ProgramData\Microsoft\Windows\Start Menu\Programs",
+        "$env:USERPROFILE\Desktop",
+        "$env:PUBLIC\Desktop"
+    )
+    foreach ($loc in $shortcutLocations) {
+        if (Test-Path $loc) {
+            Get-ChildItem -Path $loc -Filter "*Outlook*.lnk" -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
+                Write-OptLog "Удаление ярлыка Outlook: $($_.FullName)..." 'INFO'
+                Remove-Item -Path $_.FullName -Force -ErrorAction SilentlyContinue
+            }
+        }
+    }
+
+    # 6. Очистка автозапуска
+    Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "olk" -Force -ErrorAction SilentlyContinue
+    Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "Outlook" -Force -ErrorAction SilentlyContinue
+    Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run" -Name "olk" -Force -ErrorAction SilentlyContinue
+    Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run" -Name "Outlook" -Force -ErrorAction SilentlyContinue
+
+    # 7. Запрет автоматической установки и принудительной миграции в реестре
+    $officePrefs = "HKCU:\Software\Microsoft\Office\16.0\Outlook\Preferences"
+    Set-RegistryValueSafe -Path $officePrefs -Name "UseNewOutlook" -Value 0 -PropertyType 'DWord' | Out-Null
+
+    $officeOpt = "HKCU:\Software\Microsoft\Office\16.0\Outlook\Options\General"
+    Set-RegistryValueSafe -Path $officeOpt -Name "HideNewOutlookToggle" -Value 1 -PropertyType 'DWord' | Out-Null
+
+    $policyOffice = "HKLM:\SOFTWARE\Policies\Microsoft\Office\16.0\Outlook\Preferences"
+    Set-RegistryValueSafe -Path $policyOffice -Name "UseNewOutlook" -Value 0 -PropertyType 'DWord' | Out-Null
+
+    $policyOfficeOpt = "HKLM:\SOFTWARE\Policies\Microsoft\Office\16.0\Outlook\Options\General"
+    Set-RegistryValueSafe -Path $policyOfficeOpt -Name "HideNewOutlookToggle" -Value 1 -PropertyType 'DWord' | Out-Null
+
+    $policyWinOutlook = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Microsoft\Outlook"
+    Set-RegistryValueSafe -Path $policyWinOutlook -Name "PreventNewOutlook" -Value 1 -PropertyType 'DWord' | Out-Null
+
+    Write-OptLog "Удаление и блокировка Microsoft Outlook успешно завершены." 'SUCCESS'
+}
+
 function Invoke-AllBloatwareCleanup {
     <#
     .SYNOPSIS
         Комплексный запуск очистки мусора.
     #>
-    Write-OptLog "=== СТАРТ БЕЗОПАСНОЙ ОЧИСТКИ BLOATWARE И ONEDRIVE ===" 'HEADER'
+    Write-OptLog "=== СТАРТ БЕЗОПАСНОЙ ОЧИСТКИ BLOATWARE, ONEDRIVE И OUTLOOK ===" 'HEADER'
     Remove-ConsumerBloatware
     Remove-OneDrive
+    Remove-Outlook
     Write-OptLog "Очистка завершена. Базовые приложения (Калькулятор, Блокнот, Фотографии, Камера, Музыка, Защитник, Магазин) сохранены." 'SUCCESS'
 }
 
-Export-ModuleMember -Function Remove-ConsumerBloatware, Remove-OneDrive, Invoke-AllBloatwareCleanup
+Export-ModuleMember -Function Remove-ConsumerBloatware, Remove-OneDrive, Remove-Outlook, Invoke-AllBloatwareCleanup

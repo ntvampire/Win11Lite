@@ -189,7 +189,7 @@ do {
     Write-Host " [2] Оптимизация дисковой подсистемы (HDD, NTFS, Pagefile, WSearch, SysMain)" -ForegroundColor White
     Write-Host " [3] Оптимизация оперативной памяти и служб (4GB RAM, сжатие, телеметрия)" -ForegroundColor White
     Write-Host " [4] Оптимизация графики и интерфейса (iGPU, без прозрачности, с ClearType)" -ForegroundColor White
-    Write-Host " [5] Очистить рекламные приложения (с сохранением Store, плеера, блокнота и др.)" -ForegroundColor White
+    Write-Host " [5] Очистить мусорные приложения (Bloatware, OneDrive, Outlook, сохранив Store)" -ForegroundColor White
     Write-Host " [6] Создать точку восстановления системы вручную" -ForegroundColor Gray
     Write-Host " [0] Выход" -ForegroundColor Red
 
