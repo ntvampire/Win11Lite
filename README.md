@@ -1,5 +1,11 @@
 # Win11Lite: Оптимизация Windows 10/11 x64 для слабых ПК и ноутбуков
 
+[![Статус проекта](https://img.shields.io/badge/Статус-Активен%20%2F%20Поддерживается-success?style=flat-square&logo=checkmarx)](https://github.com/ntvampire/Win11Lite)
+[![Платформа](https://img.shields.io/badge/Платформа-Windows%2010%20%7C%2011%20x64-0078D6?style=flat-square&logo=windows)](https://github.com/ntvampire/Win11Lite)
+[![PowerShell](https://img.shields.io/badge/PowerShell-5.1%2B%20%7C%207%2B-5391FE?style=flat-square&logo=powershell)](https://github.com/ntvampire/Win11Lite)
+[![Редакции](https://img.shields.io/badge/Редакции-Home%20%7C%20Pro%20%7C%20LTSC%20%7C%20LTSB-orange?style=flat-square)](https://github.com/ntvampire/Win11Lite)
+[![Тестирование](https://img.shields.io/badge/Тестирование-Чистая%20установка%20Пройдено-brightgreen?style=flat-square)](https://github.com/ntvampire/Win11Lite)
+
 Специализированный модульный PowerShell-скрипт оптимизации после чистой установки Windows 10 или Windows 11 (поддерживаются редакции **Home, Pro, Enterprise, LTSC 2019/2021, LTSB 2015/2016**).
 
 Целевой профиль оборудования:
