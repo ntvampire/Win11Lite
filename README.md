@@ -17,13 +17,17 @@
 
 ## ⚡ Быстрый запуск одной командой
 
-Откройте **PowerShell от имени Администратора** (`Win + X` -> *Терминал (Администратор)* или *PowerShell (Администратор)*) и вставьте:
+Откройте **PowerShell от имени Администратора** (`Win + X` -> *Терминал (Администратор)* или *PowerShell (Администратор)*) и выполните команду:
 
 ### 1. Интерактивный режим с выбором пунктов (Рекомендуется):
 ```powershell
-irm https://raw.githubusercontent.com/ntvampire/Win11Lite/main/start.ps1 | iex
+irm https://ntvampire.github.io/Win11Lite/start.ps1 | iex
 ```
 *(Скрипт автоматически скачивает свежий архив с GitHub, распаковывает его во временную папку и открывает интерактивное меню)*
+
+> [!TIP]
+> Веб-страница проекта с кнопкой быстрого копирования доступна по адресу: **[https://ntvampire.github.io/Win11Lite/](https://ntvampire.github.io/Win11Lite/)**  
+> *(Запасное зеркало на случай недоступности Pages: `irm https://raw.githubusercontent.com/ntvampire/Win11Lite/main/start.ps1 | iex`)*
 
 **Доступные пункты меню:**
 - `[1]` **Полная комплексная оптимизация** (применяются все модули сразу);
@@ -36,7 +40,7 @@ irm https://raw.githubusercontent.com/ntvampire/Win11Lite/main/start.ps1 | iex
 
 ### 2. Полностью автоматический режим (без вопросов) с перезагрузкой:
 ```powershell
-& ([scriptblock]::Create((irm https://raw.githubusercontent.com/ntvampire/Win11Lite/main/Optimize-Windows.ps1))) -Unattended -Restart
+& ([scriptblock]::Create((irm https://ntvampire.github.io/Win11Lite/Optimize-Windows.ps1))) -Unattended -Restart
 ```
 
 ### 3. Запуск через локальный файл (если репозиторий уже скачан):
